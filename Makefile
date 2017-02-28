@@ -7,10 +7,10 @@
 # of patent rights can be found in the PATENTS file in the same directory.
 #
 
-CXX = c++
-CXXFLAGS = -pthread -std=c++0x
+CXX = /opt/rh/devtoolset-4/root/usr/bin/g++
+CXXFLAGS = -pthread -std=c++0x -fPIC
 OBJS = args.o dictionary.o matrix.o vector.o model.o utils.o fasttext.o
-INCLUDES = -I.
+INCLUDES = -I. -I/opt/rh/devtoolset-4/root/usr/include/c++/5.2.1
 
 opt: CXXFLAGS += -O3 -funroll-loops
 opt: fasttext
@@ -40,7 +40,7 @@ fasttext.o: src/fasttext.cc src/*.h
 	$(CXX) $(CXXFLAGS) -c src/fasttext.cc
 
 fasttext: $(OBJS) src/fasttext.cc
-	$(CXX) $(CXXFLAGS) $(OBJS) src/main.cc -o fasttext
+	$(CXX) $(CXXFLAGS) $(OBJS) src/main.cc -o fasttext.so -shared -fPIC
 
 clean:
 	rm -rf *.o fasttext

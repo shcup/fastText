@@ -12,6 +12,7 @@
 #include <math.h>
 
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <thread>
 #include <string>
@@ -183,6 +184,19 @@ void FastText::predict(std::istream& in, int32_t k,
   for (auto it = modelPredictions.cbegin(); it != modelPredictions.cend(); it++) {
     predictions.push_back(std::make_pair(it->first, dict_->getLabel(it->second)));
   }
+}
+
+std::string FastText::predict(const std::string& input_text, int k) {
+  std::istringstream iss(input_text);
+  std::vector<std::pair<real,std::string>> predictions;
+  predict(iss, k, predictions);
+  
+  std::ostringstream foo;
+  for (int i = 0 ; i < predictions.size(); ++i) {
+    foo << predictions[i].second << ":" << predictions[i].first << ";";
+  } 
+
+  return foo.str();
 }
 
 void FastText::predict(std::istream& in, int32_t k, bool print_prob) {

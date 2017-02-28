@@ -128,6 +128,22 @@ void train(int argc, char** argv) {
   fasttext.train(a);
 }
 
+extern "C" {
+  FastText fasttext_instance;
+
+  void LoadModel(char* file_path) {
+    printf("file_path: %s\n", file_path);
+    fasttext_instance.loadModel(std::string(file_path));
+  }
+  
+  const char* Predict(char* input_text, int k) {
+    std::string input(input_text);
+    return fasttext_instance.predict(input, k).c_str();
+  }
+}
+
+
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     printUsage();
