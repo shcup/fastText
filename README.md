@@ -196,3 +196,5 @@ See the CONTRIBUTING file for information about how to help out.
 ## License
 
 fastText is BSD-licensed. We also provide an additional patent grant.
+
+customized by shcup@126.com
