@@ -6,9 +6,11 @@
  * LICENSE file in the root directory of this source tree. An additional grant
  * of patent rights can be found in the PATENTS file in the same directory.
  */
-
+#include "stdio.h"
+#include "stdlib.h"
+#include <locale.h>
 #include <iostream>
-
+#include "memory.h"
 #include "fasttext.h"
 #include "args.h"
 
@@ -129,16 +131,105 @@ void train(int argc, char** argv) {
 }
 
 extern "C" {
-  FastText fasttext_instance;
+  std::vector<FastText*> fasttext_instance;
 
-  void LoadModel(char* file_path) {
+  void LoadModel(char* file_path, int idx = 0) {
+    while (fasttext_instance.size() < idx + 1) {
+      FastText* ft = new FastText();
+      fasttext_instance.push_back(ft);
+    }
     printf("file_path: %s\n", file_path);
-    fasttext_instance.loadModel(std::string(file_path));
+    fasttext_instance[idx]->loadModel(std::string(file_path));
   }
   
-  const char* Predict(char* input_text, int k) {
+  const char* Predict(char* input_text, int k, int idx = 0) {
     std::string input(input_text);
-    return fasttext_instance.predict(input, k).c_str();
+    const char* predict_ret = fasttext_instance[idx]->predict(input, k);
+    return predict_ret;
+  }
+
+  bool IsCharacter(wchar_t w) {
+    if ((w >= 'a' && w <= 'z') || (w >= 'A' && w <= 'Z')) {
+      return true;
+    }
+    return false;
+  }
+  bool IsNumber(wchar_t w) {
+    if (w >= '0' && w <= '9') {
+      return true;
+    }
+    return false;
+  }
+  bool IsPunc(wchar_t w) {
+    if (w < 128) {
+      if (!IsCharacter(w) && !IsNumber(w)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const char* PreProcess(char* text, int length) {
+    setlocale(LC_ALL, "zh_CN.utf8");
+    //
+    printf("Get the input: %s, %d\n", text, length);
+    wchar_t * dBuf=NULL;
+    int dSize = mbstowcs(dBuf, text, 0) + 1; 
+    printf("need length: %d\n", dSize);
+    dBuf=new wchar_t[dSize];
+    wmemset(dBuf, 0, dSize);
+    int nRet=mbstowcs(dBuf, text, length);
+    //
+    printf ("Wide char length: %d\n", nRet);
+
+    if (nRet == -1) {
+      return  NULL;
+    } 
+    
+    std::vector<std::wstring> split_wstring;
+    
+    for (size_t i = 0; i < nRet; ++i) {
+      if (dBuf[i] == ' ') {
+        continue;
+      }
+      if (dBuf[i] >= 128) {
+        split_wstring.push_back(std::wstring(dBuf + i, 1));
+      } else if (IsCharacter(dBuf[i])) {
+        if (i > 0 && (IsCharacter(dBuf[i]) || IsNumber(dBuf[i]) || dBuf[i] == '.')) {
+          split_wstring[split_wstring.size() - 1].push_back(dBuf[i]);
+        }
+        split_wstring.push_back(std::wstring(dBuf + i, 1));
+      } else if (IsNumber(dBuf[i])) {
+        if (i > 0 && (IsCharacter(dBuf[i]) || IsNumber(dBuf[i]) || dBuf[i] == '.')) {
+          split_wstring[split_wstring.size() - 1].push_back(dBuf[i]);
+        }
+        split_wstring.push_back(std::wstring(dBuf + i, 1));
+      } else {
+        split_wstring.push_back(std::wstring(dBuf + i, 1));
+      }
+    }
+
+    std::wstring res_wstring;
+    for (size_t i = 0; i < split_wstring.size(); ++i) {
+      if (i != 0) {
+          res_wstring.push_back(' ');
+      }
+      res_wstring.append(split_wstring[i]);
+    }
+
+    char* sBuf = NULL;
+    dSize=wcstombs(sBuf, res_wstring.c_str(), 0)+1;
+    sBuf = new char[dSize];
+    memset(dBuf, 0, dSize);
+    nRet=wcstombs(sBuf, res_wstring.c_str(), res_wstring.size());
+    if (nRet == -1) {
+      return NULL;
+    }
+  
+    std::string output(sBuf);   
+    delete [] sBuf;
+    delete [] dBuf;
+    return output.c_str();
   }
 }
 

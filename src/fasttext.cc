@@ -186,17 +186,27 @@ void FastText::predict(std::istream& in, int32_t k,
   }
 }
 
-std::string FastText::predict(const std::string& input_text, int k) {
+bool comp(std::pair<real,std::string>& a, std::pair<real,std::string>& b) {
+  return a.first > b.first;
+}
+
+char buffer[809600];
+const char* FastText::predict(const std::string& input_text, int k) {
   std::istringstream iss(input_text);
   std::vector<std::pair<real,std::string>> predictions;
   predict(iss, k, predictions);
-  
-  std::ostringstream foo;
+  sort(predictions.begin(), predictions.end(), comp);
+ 
+  size_t idx = 0; 
   for (int i = 0 ; i < predictions.size(); ++i) {
-    foo << predictions[i].second << ":" << predictions[i].first << ";";
+    int ret = sprintf(buffer + idx, "%s:%lf;", predictions[i].second.c_str(), exp(predictions[i].first));
+    if (ret == -1) {
+      return NULL;
+    }
+    idx = idx + ret;
   } 
 
-  return foo.str();
+  return buffer;
 }
 
 void FastText::predict(std::istream& in, int32_t k, bool print_prob) {
