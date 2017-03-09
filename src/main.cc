@@ -132,6 +132,7 @@ void train(int argc, char** argv) {
 
 extern "C" {
   std::vector<FastText*> fasttext_instance;
+  std::string str_buf;
 
   void LoadModel(char* file_path, int idx = 0) {
     while (fasttext_instance.size() < idx + 1) {
@@ -149,13 +150,13 @@ extern "C" {
   }
 
   bool IsCharacter(wchar_t w) {
-    if ((w >= 'a' && w <= 'z') || (w >= 'A' && w <= 'Z')) {
+    if ((w >= L'a' && w <= L'z') || (w >= L'A' && w <= L'Z')) {
       return true;
     }
     return false;
   }
   bool IsNumber(wchar_t w) {
-    if (w >= '0' && w <= '9') {
+    if (w >= L'0' && w <= L'9') {
       return true;
     }
     return false;
@@ -169,18 +170,19 @@ extern "C" {
     return false;
   }
 
-  const char* PreProcess(char* text, int length) {
+  const char* PreProcess(char* text) {
     setlocale(LC_ALL, "zh_CN.utf8");
     //
-    printf("Get the input: %s, %d\n", text, length);
+    int length = strlen(text);
+    //printf("Get the input: %d %s\n", length, text);
     wchar_t * dBuf=NULL;
     int dSize = mbstowcs(dBuf, text, 0) + 1; 
-    printf("need length: %d\n", dSize);
+    //printf("need length: %d\n", dSize);
     dBuf=new wchar_t[dSize];
     wmemset(dBuf, 0, dSize);
     int nRet=mbstowcs(dBuf, text, length);
     //
-    printf ("Wide char length: %d\n", nRet);
+    //printf ("Wide char length: %d\n", nRet);
 
     if (nRet == -1) {
       return  NULL;
@@ -189,25 +191,28 @@ extern "C" {
     std::vector<std::wstring> split_wstring;
     
     for (size_t i = 0; i < nRet; ++i) {
-      if (dBuf[i] == ' ') {
+      if (dBuf[i] == L' ') {
         continue;
       }
       if (dBuf[i] >= 128) {
         split_wstring.push_back(std::wstring(dBuf + i, 1));
       } else if (IsCharacter(dBuf[i])) {
-        if (i > 0 && (IsCharacter(dBuf[i]) || IsNumber(dBuf[i]) || dBuf[i] == '.')) {
+        if (i > 0 && (IsCharacter(dBuf[i - 1]) || IsNumber(dBuf[i - 1]) || dBuf[i - 1] == L'.')) {
           split_wstring[split_wstring.size() - 1].push_back(dBuf[i]);
+        } else {
+          split_wstring.push_back(std::wstring(dBuf + i, 1));
         }
-        split_wstring.push_back(std::wstring(dBuf + i, 1));
       } else if (IsNumber(dBuf[i])) {
-        if (i > 0 && (IsCharacter(dBuf[i]) || IsNumber(dBuf[i]) || dBuf[i] == '.')) {
+        if (i > 0 && (IsCharacter(dBuf[i - 1]) || IsNumber(dBuf[i - 1]) || dBuf[i - 1] == L'.')) {
           split_wstring[split_wstring.size() - 1].push_back(dBuf[i]);
+        } else {
+          split_wstring.push_back(std::wstring(dBuf + i, 1));
         }
-        split_wstring.push_back(std::wstring(dBuf + i, 1));
       } else {
         split_wstring.push_back(std::wstring(dBuf + i, 1));
       }
     }
+    //printf ("Split Wstring size: %d\n", split_wstring.size());
 
     std::wstring res_wstring;
     for (size_t i = 0; i < split_wstring.size(); ++i) {
@@ -216,20 +221,25 @@ extern "C" {
       }
       res_wstring.append(split_wstring[i]);
     }
+    //printf ("res_wstring size: %d\n", res_wstring.size());
+
 
     char* sBuf = NULL;
-    dSize=wcstombs(sBuf, res_wstring.c_str(), 0)+1;
-    sBuf = new char[dSize];
-    memset(dBuf, 0, dSize);
-    nRet=wcstombs(sBuf, res_wstring.c_str(), res_wstring.size());
+    //dSize=wcstombs(sBuf, res_wstring.c_str(), 0)+1;
+    //printf("Res char buffer size: %d\n", dSize);
+    size_t char_buffer_size = res_wstring.size() * 4;
+    sBuf = new char[char_buffer_size];
+    memset(sBuf, 0, char_buffer_size);
+    nRet=wcstombs(sBuf, res_wstring.c_str(), char_buffer_size);
     if (nRet == -1) {
       return NULL;
     }
+    //printf ("oUTPUT LENGHT: %d %s\n", nRet, sBuf);
   
-    std::string output(sBuf);   
+    str_buf.assign(sBuf);   
     delete [] sBuf;
     delete [] dBuf;
-    return output.c_str();
+    return str_buf.c_str();
   }
 }
 
