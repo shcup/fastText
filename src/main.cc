@@ -13,6 +13,7 @@
 #include "memory.h"
 #include "fasttext.h"
 #include "args.h"
+#include <mutex>
 
 using namespace fasttext;
 
@@ -133,20 +134,46 @@ void train(int argc, char** argv) {
 extern "C" {
   std::vector<FastText*> fasttext_instance;
   std::string str_buf;
+  std::mutex mtx;
 
   void LoadModel(char* file_path, int idx = 0) {
     while (fasttext_instance.size() < idx + 1) {
-      FastText* ft = new FastText();
-      fasttext_instance.push_back(ft);
+      fasttext_instance.push_back(NULL);
     }
-    printf("file_path: %s\n", file_path);
-    fasttext_instance[idx]->loadModel(std::string(file_path));
+    if (fasttext_instance[idx] == NULL) {
+      printf("load model from c code, file_path: %s\n", file_path);
+      FastText* ft = new FastText();
+      fasttext_instance[idx] = ft;
+      fasttext_instance[idx]->loadModel(std::string(file_path));
+    }
   }
   
   const char* Predict(char* input_text, int k, int idx = 0) {
     std::string input(input_text);
     const char* predict_ret = fasttext_instance[idx]->predict(input, k);
     return predict_ret;
+  }
+  const char* PreProcess(char* text);
+  const char* PredictWithPreprocess(char* input_text, char* output, int k, int idx = 0) {
+    const char* predict_ret = NULL;
+    try
+    {  
+        std::lock_guard<std::mutex> lck(mtx);
+        const char* temp = PreProcess(input_text);
+        if (temp == NULL) {
+          return NULL;
+        } 
+        std::string input(temp);
+        predict_ret = fasttext_instance[idx]->predict(input, k);
+        strcpy(output, predict_ret);
+  
+    }  
+    catch (std::logic_error&e)  
+    {  
+        std::cout << e.what() << std::endl;  
+        std::cout << "[exception caught]\n";  
+    }  
+   return predict_ret;
   }
 
   bool IsCharacter(wchar_t w) {
